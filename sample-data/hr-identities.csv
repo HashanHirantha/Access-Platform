@@ -1,0 +1,3 @@
+employee_id,name,email,department,job_title,manager_id,employment_status,contract_end
+EMP900,Samira Fernando,samira@northstar.example,Engineering,Software Engineer,EMP002,active,
+EMP901,Amir Khan,amir@northstar.example,Operations,Contract Analyst,EMP002,contractor,2026-09-30

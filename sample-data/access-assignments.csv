@@ -1,0 +1,4 @@
+account_id,employee_id,application,permission,privileged,last_active,account_type,expires_at
+kavindi.crm,EMP006,Partner CRM,Workspace administrator,true,2026-01-15,user,
+legacy.partner,,Partner CRM,Read reports,false,2026-01-15,user,
+deployment.bot,,Partner CRM,Automation token,true,2026-10-01,service,
