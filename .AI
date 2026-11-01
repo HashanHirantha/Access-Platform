@@ -1,0 +1,323 @@
+# AccessGuard — AI Project Context
+
+## Overview
+
+AccessGuard is an **enterprise user access review and governance platform** built as an executable prototype for the Dialog Axiata TransitionX problem statement. It consolidates identity and entitlement evidence, prioritizes access reviews using configurable risk policies, records accountable decisions with independent approvals, and verifies remediation against an independent mock source.
+
+> All data is synthetic. No real AWS, GitHub, Microsoft, or finance credentials are required.
+
+---
+
+## Tech Stack
+
+| Layer              | Technology                                                     |
+| ------------------ | -------------------------------------------------------------- |
+| **Frontend**       | React 19, TypeScript 5.9, Tailwind CSS 4, Radix UI, shadcn/ui |
+| **Framework**      | Next.js 16 (via Vinext on Vite 8)                              |
+| **Backend**        | Vinext server routes running in a Cloudflare Worker             |
+| **Database**       | Cloudflare D1 (SQLite) with Drizzle ORM & migrations           |
+| **Auth**           | ChatGPT Sites-owned authentication (local dev: mock auth)      |
+| **Icons**          | Lucide React                                                   |
+| **Forms**          | React Hook Form + Zod validation                               |
+| **Charts**         | Recharts                                                       |
+| **Package Manager**| pnpm 11                                                        |
+| **Runtime**        | Node.js 24+                                                    |
+| **CI/CD**          | GitHub Actions (typecheck → test → build)                      |
+| **Testing**        | Native Node.js test runner with in-memory SQLite adapter        |
+
+---
+
+## Project Structure
+
+```
+Access-Platform/
+├── app/                              # Next.js app directory
+│   ├── layout.tsx                    # Root layout with metadata
+│   ├── page.tsx                      # Entry point → renders AccessGuard workspace
+│   ├── workspace.tsx                 # Dashboard and all workflow UI interfaces
+│   ├── globals.css                   # Responsive design system (Tailwind)
+│   ├── chatgpt-auth.ts              # ChatGPT authentication helpers
+│   └── api/
+│       └── workspace/
+│           └── route.ts             # Authenticated API — GET snapshot/exports, POST actions
+│
+├── lib/                              # Core application logic
+│   ├── domain.ts                    # Pure domain: risk assessment, decision rules, authorization, CSV parsing
+│   ├── service.ts                   # Use cases: scan, decide, execute, import, policy, sync
+│   ├── repository.ts               # Tenant-scoped SQL access, transactions, seeding
+│   ├── seed.ts                      # Reproducible synthetic workspace data generator
+│   ├── connectors.ts               # Connector bindings for request context
+│   ├── connector-contract.mts      # Connector contract/protocol definition
+│   ├── connector-context.ts        # Request-scoped connector binding context
+│   ├── connector-errors.mts        # Connector error types
+│   ├── connector-preview.d.ts      # Connector preview type declarations
+│   └── utils.ts                     # Utility functions (cn, etc.)
+│
+├── db/
+│   ├── schema.ts                    # Drizzle ORM schema — all 12 tables defined here
+│   └── index.ts                     # Database exports
+│
+├── drizzle/                          # Versioned SQL migrations
+│   ├── 0000_handy_zuras.sql
+│   ├── 0001_productive_dreadnoughts.sql
+│   ├── 0002_light_killmonger.sql
+│   ├── 0003_marvelous_magdalene.sql
+│   └── meta/                        # Migration snapshots and journal
+│
+├── components/
+│   ├── connector-error.tsx          # Connector error display component
+│   └── ui/                          # 50+ shadcn/ui components
+│       ├── accordion.tsx
+│       ├── alert-dialog.tsx
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── chart.tsx
+│       ├── combobox.tsx
+│       ├── command.tsx
+│       ├── dialog.tsx
+│       ├── drawer.tsx
+│       ├── dropdown-menu.tsx
+│       ├── form.tsx
+│       ├── input.tsx
+│       ├── message.tsx
+│       ├── pagination.tsx
+│       ├── select.tsx
+│       ├── sidebar.tsx
+│       ├── table.tsx
+│       ├── tabs.tsx
+│       ├── tooltip.tsx
+│       └── ... (50+ total UI primitives)
+│
+├── tests/                            # 35 automated tests
+│   ├── domain.test.ts               # Pure domain logic tests
+│   ├── workflows.test.ts           # Full API/service workflow integration tests
+│   ├── auth.ts                      # Test auth utilities
+│   ├── database.ts                  # In-memory SQLite test adapter
+│   ├── env.ts                       # Test environment setup
+│   └── register.mjs                 # Test runner registration
+│
+├── worker/
+│   └── index.ts                     # Cloudflare Worker entry point
+│
+├── scripts/                          # Build, CI, and dev tooling
+│   ├── run-framework.mjs           # Framework runner (dev/build)
+│   ├── migrate-local.mjs           # Local D1 migration runner
+│   ├── execution-profile.mjs       # Execution environment detection
+│   ├── sites-env.mjs               # Sites environment configuration
+│   ├── tool-environment.mjs        # Tool environment configuration
+│   ├── build-verified.sh           # Build verification script
+│   ├── install-ci.mjs / .sh        # CI installation scripts
+│   ├── install-pnpm.sh             # pnpm installer
+│   ├── connector-preview/          # Connector preview dev tooling
+│   │   ├── connector-preview-session.mjs
+│   │   ├── host-binding.mjs
+│   │   ├── protocol.mjs
+│   │   └── worker.mjs
+│   └── vite/                        # Custom Vite plugins
+│       ├── sites-vite-plugin.ts
+│       └── connector-preview-plugin.mjs
+│
+├── sample-data/                      # Importable demo data
+│   ├── hr-identities.csv           # HR identity records
+│   └── access-assignments.csv      # Permission/entitlement assignments
+│
+├── docs/
+│   ├── ARCHITECTURE.md              # Architecture, decision flow, requirement traceability
+│   └── DEMO_SI.md                   # Sinhala language demonstration guide
+│
+├── public/
+│   └── favicon.svg
+│
+├── examples/
+│   └── d1/                          # D1 database example setup
+│
+├── vendor/                           # Vendored dependencies
+│
+├── .github/workflows/
+│   ├── ci.yml                       # CI pipeline: typecheck → test → build
+│   └── main.yml                     # AccessGuard checks workflow
+│
+├── .openai/
+│   └── hosting.json                 # ChatGPT Sites hosting configuration
+│
+├── package.json                      # Project manifest (accessguard v1.0.0)
+├── vite.config.ts                    # Vite + Vinext + Cloudflare plugin config
+├── drizzle.config.ts                # Drizzle-Kit config (SQLite dialect)
+├── next.config.ts                   # Next.js configuration
+├── tsconfig.json                    # TypeScript configuration
+├── eslint.config.mjs                # ESLint configuration
+├── postcss.config.mjs               # PostCSS config (Tailwind)
+├── components.json                   # shadcn/ui component registry
+├── cloudflare-env.d.ts              # Cloudflare env type declarations (D1, R2)
+├── pnpm-workspace.yaml              # pnpm workspace config
+└── .npmrc                           # npm/pnpm configuration
+```
+
+---
+
+## Database Schema (12 Tables)
+
+| Table            | Purpose                                                             |
+| ---------------- | ------------------------------------------------------------------- |
+| `workspaces`     | Tenant workspace isolation                                          |
+| `identities`     | Employee/people records (HR data)                                   |
+| `sources`        | External systems providing access data (AWS, GitHub, etc.)          |
+| `accounts`       | Provider-specific user accounts linked to identities                |
+| `entitlements`   | Permissions/roles within a source system                            |
+| `grants`         | Links accounts to entitlements (who has what access)                 |
+| `source_access`  | Independent mock source state for remediation verification          |
+| `campaigns`      | Review campaign metadata (name, dates)                              |
+| `reviews`        | Access review findings with evidence, scores, decisions             |
+| `remediations`   | Remediation job tracking (queued → verified)                        |
+| `policies`       | Configurable risk detection policies                                |
+| `audits`         | Append-only audit trail of all actions                              |
+| `imports`        | Import deduplication records (checksum-based)                       |
+
+---
+
+## Core Features
+
+### 1. Risk Assessment Engine (6 Configurable Policies)
+- **LEAVER** — Terminated employees with active access
+- **INACTIVE** — Human accounts with no activity beyond threshold
+- **ORPHANED** — Unverified owner accounts (no identity mapping)
+- **ROLE_MISMATCH** — Privileged permissions outside department baseline
+- **CONTRACT** — Expired contractor access
+- **EXPIRED** — Temporary permissions past expiry date
+
+Each policy produces a risk score (0–100), severity level (critical/high/medium/low), reason codes, and human-readable explanations.
+
+### 2. Access Review Workflow
+- Automated campaign-based risk scans
+- Manager-based reviewer assignment with security fallback
+- Self-approval prevention
+- Decision options: **Keep**, **Remove**, **Investigate**, **Expiring Exception** (1–90 days)
+- Evidence snapshots with identity context, source timestamps, and policy settings
+
+### 3. Critical Independent Approval
+- Critical-severity findings require two independent approvals
+- Different reviewers must supply first and second approval
+- Second reviewer can return to investigation
+- Same employee cannot review their own access
+
+### 4. Remediation & Verification
+- Durable job queue: queued → executing → verified/failed
+- Optimistic concurrency with version checks
+- Two-minute worker leases for crash recovery
+- Mock source write + independent read-back verification
+- Safe retry after failures
+
+### 5. Data Import
+- Validated, atomic HR identity and access assignment CSV upserts
+- Exact-file checksum deduplication
+- Stable employee/provider identifiers
+- Conflicting record detection
+- Bounded SQL parameters (max 100 per statement)
+- Up to 1 MB / 1,000 rows per import
+
+### 6. Audit & Compliance
+- Append-only audit events for all actions
+- Authenticated principal attribution
+- CSV evidence exports (reviews + audit trail)
+- Formula injection protection in exports
+- Database-derived dashboard metrics and charts
+
+### 7. Dashboard
+- Responsive UI with database-derived counts
+- Activity charts and certification progress
+- Persona-based role simulation (admin, reviewer, security, auditor)
+
+---
+
+## API Surface
+
+**Base endpoint:** `/api/workspace`
+
+| Method | Path                                | Description                     |
+| ------ | ----------------------------------- | ------------------------------- |
+| GET    | `/api/workspace`                    | Workspace snapshot              |
+| GET    | `/api/workspace?export=reviews`     | Review evidence CSV export      |
+| GET    | `/api/workspace?export=audit`       | Audit history CSV export        |
+| POST   | `/api/workspace` `{action:"scan"}`  | Run risk scan campaign          |
+| POST   | `/api/workspace` `{action:"decide"}`| Record review decision          |
+| POST   | `/api/workspace` `{action:"execute"}`| Execute & verify remediation   |
+| POST   | `/api/workspace` `{action:"policy"}`| Update policy settings          |
+| POST   | `/api/workspace` `{action:"sync"}`  | Sync external source            |
+| POST   | `/api/workspace` `{action:"import"}`| Import HR/access CSV data       |
+
+---
+
+## Demo Personas
+
+| Key        | Name             | Role              | Capabilities                            |
+| ---------- | ---------------- | ----------------- | --------------------------------------- |
+| `admin`    | Hashan Hirantha  | Workspace admin   | Full access: scan, import, policy, exec |
+| `reviewer` | Maya Perera      | Department reviewer| Review assigned access                 |
+| `security` | Daniel Silva     | Security reviewer | Independent approval, execution         |
+| `auditor`  | Alex Morgan      | Read-only auditor | View dashboard, audit trail             |
+
+---
+
+## Commands
+
+```bash
+# Install dependencies
+pnpm install --frozen-lockfile
+
+# Development
+pnpm dev                    # Start dev server (http://localhost:5173)
+
+# Build & Deploy
+pnpm build                  # Production build
+pnpm start                  # Local production preview via Wrangler
+
+# Database
+pnpm db:generate            # Generate Drizzle migrations
+pnpm db:migrate:local       # Apply migrations to local D1
+
+# Quality
+pnpm typecheck              # TypeScript check
+pnpm test                   # Run 35 automated tests
+pnpm lint                   # ESLint
+
+# CI (GitHub Actions)
+pnpm install --frozen-lockfile → pnpm typecheck → pnpm test → pnpm build
+```
+
+---
+
+## Testing
+
+- **35 automated tests** covering:
+  - Pure domain logic (risk rules, positive/negative cases)
+  - Full API/service workflow integration
+  - Authorization and tenant isolation
+  - Concurrency and optimistic locking
+  - Failure recovery and safe retries
+  - 1,000-row CSV import stress test
+  - CSV export formula injection protection
+- Tests use **disposable in-memory SQLite databases** — no external dependencies
+- Native **Node.js test runner** (no Jest/Vitest dependency)
+
+---
+
+## Architecture Highlights
+
+- **Single deployable** — Modular monolith, not microservices
+- **Clean separation** — `domain.ts` (pure logic) → `service.ts` (use cases) → `repository.ts` (SQL)
+- **Tenant isolation** — All queries scoped by workspace ID derived from authenticated identity
+- **Transactional batches** — D1 batch API for atomic multi-statement operations
+- **Evidence integrity** — Evidence changes invalidate stale decisions and executions
+- **Optimistic concurrency** — Version checks prevent lost updates across all mutable entities
+
+---
+
+## Prototype Boundaries
+
+- All connectors are **simulations** — no real external permissions are modified
+- Scans and execution are **user-triggered** — no background scheduler
+- Policies use **transparent rules**, not ML/AI models
+- Client-side pagination/filtering (not server-side)
+- Audit records are application-protected but not cryptographically immutable
+- No penetration test or compliance certification performed
+
