@@ -2,75 +2,100 @@
 
 ## Overview
 
-AccessGuard has **35 automated tests** covering domain logic, API workflows, authorization, concurrency, failure recovery, and data import. Tests use the **native Node.js test runner** with disposable in-memory SQLite databases — no external dependencies or test frameworks required.
+AccessGuard includes automated testing across both its **Python FastAPI backend** and its **TypeScript frontend**.
 
-## Running Tests
+---
+
+## 1. Python Backend Testing (pytest)
+
+### Running Python Tests
 
 ```bash
-# Run all tests
+cd backend
+# With virtual environment active:
+pytest -v
+
+# Run only domain tests
+pytest tests/test_domain.py -v
+
+# Run only API tests
+pytest tests/test_api.py -v
+```
+
+### Python Test Suite (`backend/tests/`)
+
+| File                           | Type        | Description                                                          |
+| ------------------------------ | ----------- | -------------------------------------------------------------------- |
+| `tests/test_domain.py`         | Unit        | Pure risk rules (6 policies), self-review prevention, dual approval   |
+| `tests/test_api.py`            | Integration | FastAPI endpoints (`/health`, `/api/workspace`, headers, OpenAPI)    |
+
+### Backend Coverage Highlights
+- ✅ **LEAVER Policy**: Terminated employee with active account yields score 100, critical severity.
+- ✅ **ORPHANED Policy**: Human account without linked identity yields score 78, high severity.
+- ✅ **INACTIVE Policy**: Human account without activity beyond threshold triggers review; elevated score for privileged grants.
+- ✅ **Leave Status Exemption**: Inactive policy skipped when employee is on approved leave.
+- ✅ **ROLE_MISMATCH Policy**: Privileged grant outside approved department baseline flagged.
+- ✅ **CONTRACT Policy**: Contractor past contract end date triggers critical score 90.
+- ✅ **EXPIRED Policy**: Temporary grant past approved expiration date flagged with score 88.
+- ✅ **Self-Review Prevention**: Rejects reviewer attempting to approve their own access (`DomainError: 403`).
+- ✅ **Critical Dual Approval**: Rejects when the same reviewer attempts to provide both first and second approval.
+
+---
+
+## 2. TypeScript / Frontend Testing (Node.js Test Runner)
+
+### Running TypeScript Tests
+
+```bash
+# Run all 35 tests
 pnpm test
 
-# TypeScript check (runs before tests in CI)
+# TypeScript type checking
 pnpm typecheck
 
-# Full CI pipeline
+# Full CI verification pipeline
 pnpm typecheck && pnpm test && pnpm build
 ```
 
-## Test Files
+### TypeScript Test Files (`tests/`)
 
-| File                    | Type           | Description                                             |
-| ----------------------- | -------------- | ------------------------------------------------------- |
-| `tests/domain.test.ts`  | Unit           | Pure domain logic — risk rules, authorization, CSV parsing |
-| `tests/workflows.test.ts`| Integration   | Full API/service workflows against disposable databases  |
-| `tests/auth.ts`         | Helper         | Test authentication utilities                            |
-| `tests/database.ts`     | Helper         | In-memory SQLite adapter (simulates D1)                  |
-| `tests/env.ts`          | Helper         | Test environment setup                                   |
-| `tests/register.mjs`    | Setup          | Test runner registration and TypeScript support           |
+| File                     | Type         | Description                                                |
+| ------------------------ | ------------ | ---------------------------------------------------------- |
+| `tests/domain.test.ts`   | Unit         | TypeScript domain logic, risk policies, CSV parsing        |
+| `tests/workflows.test.ts`| Integration  | Full API/service workflows against in-memory SQLite D1 DB  |
+| `tests/auth.ts`          | Test Utility | Authentication mocks                                       |
+| `tests/database.ts`      | Test Utility | In-memory SQLite transaction & D1 batch adapter            |
+| `tests/env.ts`           | Test Utility | Test environment configuration                             |
 
-## Test Coverage Areas
-
-### Domain Logic Tests
-- ✅ Risk assessment — positive and negative cases for all 6 policies
-- ✅ Service account exemptions (no human inactivity rules)
-- ✅ Leave-status handling (inactive policy skipped for employees on leave)
-- ✅ Data quality flags for missing or stale activity data
-- ✅ Authorization checks — role-based access enforcement
-- ✅ Self-approval prevention
-- ✅ Independent critical approval rules
-- ✅ CSV parsing and validation
-
-### Workflow Integration Tests
+### Frontend / Edge Coverage Highlights
 - ✅ Full scan → decide → execute → verify lifecycle
-- ✅ Critical dual-approval workflow
-- ✅ Remediation failure and safe retry
+- ✅ Safe retry after simulated connector failure
 - ✅ Optimistic concurrency conflict detection
-- ✅ Evidence change invalidation
-- ✅ Lease recovery after worker interruption
-- ✅ Tenant isolation — cross-workspace protection
+- ✅ Evidence change invalidation & re-scan requirement
+- ✅ Worker lease recovery after failure
+- ✅ Cross-tenant isolation verification
 - ✅ 1,000-row CSV import stress test
-- ✅ CSV export and formula injection protection
-- ✅ Import deduplication (checksum-based)
+- ✅ CSV export formula injection protection (`=`, `+`, `-`, `@`)
 
-## Test Infrastructure
-
-- **In-memory SQLite adapter** — Reproduces D1 SQL execution and batch rollback behavior
-- **Disposable databases** — Each test gets a fresh database, no cleanup needed
-- **No network** — All tests run offline
-- **No external services** — No Docker, no cloud dependencies
-- **TypeScript support** — `--experimental-transform-types` flag (warning is expected, not a failure)
+---
 
 ## CI Pipeline
 
-Defined in `.github/workflows/ci.yml` and `.github/workflows/main.yml`:
+Continuous integration is defined in `.github/workflows/main.yml` and `ci.yml`:
 
 ```yaml
-steps:
-  - pnpm install --frozen-lockfile
-  - pnpm typecheck
-  - pnpm test
-  - pnpm build
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
 ```
-
-Runs on: `ubuntu-latest`, Node.js 24, pnpm (version from `packageManager` field)
-

@@ -1,135 +1,194 @@
 # API Reference
 
-## Base Endpoint
+## Base Endpoints & OpenAPI Documentation
 
-All API requests go through `/api/workspace`.
-
-## Authentication
-
-Requests are authenticated via ChatGPT Sites-owned authentication. In local development, the `local-demo-owner` identity is used when no platform identity is present (disabled in production).
-
-The `x-demo-persona` header selects a synthetic actor inside the authenticated owner's isolated sandbox. It never grants membership in another owner's workspace.
+When running the FastAPI backend via Docker or local uvicorn:
+- **Base URL:** `http://localhost:8000`
+- **Interactive Swagger UI:** `http://localhost:8000/docs`
+- **ReDoc Documentation:** `http://localhost:8000/redoc`
+- **OpenAPI JSON Specification:** `http://localhost:8000/openapi.json`
+- **Health Check:** `http://localhost:8000/health`
 
 ---
 
-## GET Endpoints
+## Authentication & Headers
 
-### Get Workspace Snapshot
+| Header | Type | Description |
+| ------ | ---- | ----------- |
+| `x-demo-persona` | string | Selects synthetic role: `admin`, `reviewer`, `security`, or `auditor` (default: `admin`) |
+| `Authorization` | Bearer token | Platform authentication token in production |
 
+---
+
+## Endpoints
+
+### 1. Health Check
+
+```http
+GET /health
 ```
+
+**Response (200 OK):**
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "database": "postgresql"
+}
+```
+
+---
+
+### 2. Get Workspace Snapshot
+
+```http
 GET /api/workspace
 ```
 
-Returns the current authenticated owner's complete workspace snapshot including identities, sources, accounts, entitlements, grants, reviews, remediations, policies, audits, and campaigns.
+Returns the authenticated tenant's complete state: identities, connected sources, accounts, entitlements, active grants, review findings, remediations, policies, campaigns, and recent audits.
 
-### Export Review Evidence
-
+**Response Structure (`WorkspaceSnapshot`):**
+```json
+{
+  "workspace": { "id": "UUID", "name": "Northstar workspace", "created_at": "ISO-8601" },
+  "identities": [...],
+  "sources": [...],
+  "accounts": [...],
+  "entitlements": [...],
+  "grants": [...],
+  "reviews": [...],
+  "remediations": [...],
+  "policies": [...],
+  "audits": [...],
+  "campaigns": [...]
+}
 ```
+
+---
+
+### 3. Export CSV Reports
+
+#### Review Evidence Export
+```http
 GET /api/workspace?export=reviews
 ```
+- **Content-Type:** `text/csv`
+- **Headers:** `Content-Disposition: attachment; filename=reviews-export.csv`
+- **Safety:** Cells sanitized against formula injection (`=`, `+`, `-`, `@`).
+- **Audit:** Automatically logs an `Audit` event for compliance.
 
-Downloads a CSV file containing review evidence including captured evidence snapshots. This export operation is itself audited.
-
-### Export Audit History
-
-```
+#### Full Audit History Export
+```http
 GET /api/workspace?export=audit
 ```
-
-Downloads a CSV file containing the full audit history. The UI displays the latest 500 events; this export reads all stored events. This export operation is itself audited.
+- **Content-Type:** `text/csv`
+- **Headers:** `Content-Disposition: attachment; filename=audit-export.csv`
+- **Audit:** Automatically logs an `Audit` export event.
 
 ---
 
-## POST Actions
+### 4. Workspace Actions
 
-```
+```http
 POST /api/workspace
 Content-Type: application/json
-
-{ "action": "<action_name>", ...fields }
 ```
 
-### `scan` — Run Risk Scan
+All actions are submitted to `POST /api/workspace` with an `"action"` discriminator property:
 
-Creates a new review campaign and evaluates all active grants against enabled policies.
+#### Action: `scan` (Run Risk Scan)
+Evaluates all active grants against enabled policies and generates review findings.
 
-| Field     | Type   | Required | Default                     |
-| --------- | ------ | -------- | --------------------------- |
-| `name`    | string | No       | "Continuous access review"  |
-| `dueDays` | number | No       | 7                           |
+```json
+{
+  "action": "scan",
+  "name": "Q4 Continuous Access Review",
+  "due_days": 7
+}
+```
+- **Required Role:** `admin`
+- **Response (200):**
+  ```json
+  {
+    "message": "Scan complete. 12 new reviews created; 0 refreshed.",
+    "created": 12,
+    "refreshed": 0
+  }
+  ```
 
-**Required role:** admin  
-**Response:** `{ message, created, refreshed }`
+#### Action: `decide` (Record Review Decision)
+Records a decision on a review finding with optimistic concurrency validation.
 
-### `decide` — Record Review Decision
+```json
+{
+  "action": "decide",
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "version": 1,
+  "decision": "revoke",
+  "note": "Employee transitioned out of finance department",
+  "exception_until": null
+}
+```
+- **Decisions:** `keep`, `revoke`, `investigate`, `exception`
+- **Required Role:** Assigned reviewer, `admin`, or `security`
+- **Critical Severity (score ≥ 90):** First decision sets status to `awaiting_second`; requires an independent second reviewer to finalize.
+- **Revoke:** Automatically creates a durable `Remediation` job in `queued` status.
 
-Records a keep, revoke, investigation, or exception decision on a review.
+#### Action: `execute` (Execute & Verify Remediation)
+Claims a 2-minute worker lease, executes the revocation against mock source, and reads back to verify.
 
-| Field            | Type   | Required | Description                    |
-| ---------------- | ------ | -------- | ------------------------------ |
-| `id`             | string | Yes      | Review ID                      |
-| `version`        | number | Yes      | Current review version (OCC)   |
-| `decision`       | string | Yes      | keep, revoke, investigate, exception |
-| `note`           | string | Yes      | Mandatory reason for decision  |
-| `exceptionUntil` | string | No       | ISO date for exception expiry  |
+```json
+{
+  "action": "execute",
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "simulate_failure": false
+}
+```
+- **Required Role:** `admin` or `security`
+- **Response (200):**
+  ```json
+  {
+    "message": "Remediation executed and verified successfully."
+  }
+  ```
 
-**Required role:** Assigned reviewer, admin, or security (subject to independent approval checks)  
-**Error cases:** Version conflict (409), stale evidence (409), unauthorized (403)
+#### Action: `policy` (Update Risk Policy)
+Updates policy threshold or toggles policy on/off.
 
-### `execute` — Execute Remediation
+```json
+{
+  "action": "policy",
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "enabled": true,
+  "threshold": 60
+}
+```
+- **Required Role:** `admin`
 
-Executes and verifies a remediation job for a revoked permission.
+#### Action: `import` (Import CSV Data)
+Imports HR identities or entitlement access assignments.
 
-| Field             | Type    | Required | Description                    |
-| ----------------- | ------- | -------- | ------------------------------ |
-| `id`              | string  | Yes      | Remediation job ID             |
-| `simulateFailure` | boolean | No       | Simulate a connector failure   |
-
-**Required role:** admin or security
-
-### `policy` — Update Policy
-
-Enables/disables a risk policy or adjusts its threshold.
-
-| Field       | Type    | Required | Description                 |
-| ----------- | ------- | -------- | --------------------------- |
-| `id`        | string  | Yes      | Policy ID                   |
-| `enabled`   | boolean | Yes      | Enable/disable the policy   |
-| `threshold` | number  | No       | Configurable threshold      |
-
-**Required role:** admin
-
-### `sync` — Sync Source
-
-Synchronizes an external data source.
-
-| Field | Type   | Required | Description |
-| ----- | ------ | -------- | ----------- |
-| `id`  | string | Yes      | Source ID   |
-
-**Required role:** admin
-
-### `import` — Import CSV Data
-
-Imports HR identities or access assignments from CSV files.
-
-| Field      | Type   | Required | Description                  |
-| ---------- | ------ | -------- | ---------------------------- |
-| `kind`     | string | Yes      | `hr` or `access`             |
-| `csv`      | string | Yes      | CSV content (max 1 MB)       |
-| `filename` | string | Yes      | Original filename            |
-
-**Required role:** admin  
-**Limits:** 1 MB / 1,000 rows per import
+```json
+{
+  "action": "import",
+  "kind": "hr",
+  "filename": "q4-employees.csv",
+  "csv": "employee_id,name,email,department,job_title\nEMP100,Jane Doe,jane@northstar.example,Engineering,Lead"
+}
+```
+- **Limits:** Max 1 MB / 1,000 rows per import.
+- **Deduplication:** SHA-256 checksum prevents duplicate file imports.
+- **Required Role:** `admin`
 
 ---
 
-## Error Responses
+## HTTP Status Codes & Error Handling
 
-| Status | Condition                                    |
-| ------ | -------------------------------------------- |
-| 400    | Validation error or domain rule violation    |
-| 403    | Insufficient role or authorization           |
-| 404    | Review or resource not found                 |
-| 409    | Version conflict or stale evidence           |
-
+| Status Code | Reason | Example |
+| ----------- | ------ | ------- |
+| `200 OK` | Success | Action completed |
+| `400 Bad Request` | Validation failure or illegal state | `"CSV exceeds 1,000 row limit."` |
+| `403 Forbidden` | Authorization / role mismatch / self-approval | `"You cannot review your own access."` |
+| `404 Not Found` | Entity not found | `"Review not found."` |
+| `409 Conflict` | Optimistic concurrency conflict or duplicate import | `"This review changed. Refresh and review latest evidence."` |
+| `500 Server Error` | Unexpected error | Database connection failure |

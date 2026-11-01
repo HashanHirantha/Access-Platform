@@ -13,6 +13,7 @@ from app.models import (
     Grant, SourceAccess, Campaign, Review, Remediation,
     Policy, Audit, Import,
 )
+from app.seed import seed_workspace_data
 
 
 async def get_workspace(db: AsyncSession, workspace_id: uuid.UUID) -> Workspace | None:
@@ -26,6 +27,7 @@ async def ensure_workspace(db: AsyncSession, workspace_id: uuid.UUID) -> Workspa
         workspace = Workspace(id=workspace_id, name="Northstar workspace")
         db.add(workspace)
         await db.flush()
+        await seed_workspace_data(db, workspace)
     return workspace
 
 
