@@ -1,1 +1,0 @@
-ALTER TABLE `reviews` ADD `evidence` text DEFAULT '{}' NOT NULL;
