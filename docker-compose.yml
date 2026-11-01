@@ -1,12 +1,12 @@
 # ============================================================================
-# AccessGuard — Docker Compose
+# AccessGuard — Full Stack Multi-Container Orchestration
 # ============================================================================
-# PostgreSQL + FastAPI backend + optional frontend dev server
+# PostgreSQL 16 + FastAPI Backend + React 19 Frontend + pgAdmin
 # ============================================================================
 
 services:
   # --------------------------------------------------------------------------
-  # PostgreSQL 16
+  # PostgreSQL 16 Database
   # --------------------------------------------------------------------------
   db:
     image: postgres:16-alpine
@@ -28,11 +28,11 @@ services:
       start_period: 10s
 
   # --------------------------------------------------------------------------
-  # FastAPI Backend
+  # FastAPI Backend (Python 3.12, asyncpg, SQLAlchemy 2.0)
   # --------------------------------------------------------------------------
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: accessguard-backend
     restart: unless-stopped
@@ -56,7 +56,27 @@ services:
       start_period: 15s
 
   # --------------------------------------------------------------------------
-  # pgAdmin (optional — comment out if not needed)
+  # React / Next.js Frontend (Node 24, Vite / Vinext, Tailwind CSS)
+  # --------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: accessguard-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  # --------------------------------------------------------------------------
+  # pgAdmin Database Dashboard
   # --------------------------------------------------------------------------
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -75,4 +95,3 @@ services:
 volumes:
   postgres_data:
     driver: local
-

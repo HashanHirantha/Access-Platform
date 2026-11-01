@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `reviews_one_open_per_grant` ON `reviews` (`grantId`) WHERE "reviews"."status" IN ('pending','investigation','awaiting_second');

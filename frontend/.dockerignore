@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.vinext/
+dist/
+build/
+.wrangler/
+.git/
+*.log
+.DS_Store
+

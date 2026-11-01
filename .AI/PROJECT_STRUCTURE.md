@@ -2,10 +2,10 @@
 
 ```
 Access-Platform/
-├── backend/                          # FastAPI + PostgreSQL backend
+├── backend/                          # FastAPI + PostgreSQL Backend
 │   ├── app/
 │   │   ├── __init__.py
-│   │   ├── main.py                  # FastAPI app entry point, CORS, lifespan
+│   │   ├── main.py                  # FastAPI app entry point, CORS, lifespan, /health
 │   │   ├── config.py                # Pydantic BaseSettings (DB URL, secrets, origins)
 │   │   ├── database.py              # SQLAlchemy async engine, sessionmaker, Base
 │   │   ├── models.py                # 12 SQLAlchemy models (UUID, JSONB, ARRAY, Indexes)
@@ -26,110 +26,75 @@ Access-Platform/
 │   │   ├── __init__.py
 │   │   ├── test_domain.py           # Unit tests: 6 risk policies, self-review, dual approval
 │   │   └── test_api.py              # API tests: /health, /openapi.json, persona headers
+│   ├── Dockerfile                   # Multi-stage production build for FastAPI backend
 │   ├── alembic.ini                  # Alembic migration configuration
 │   ├── requirements.txt             # Python dependencies (FastAPI, SQLAlchemy, asyncpg, etc.)
-│   ├── .env.example                 # Sample environment variables
-│   └── .dockerignore                # Python / backend docker ignore rules
+│   ├── .env.example                 # Sample backend environment variables
+│   └── .dockerignore                # Backend docker ignore rules
 │
-├── Dockerfile                        # Multi-stage production build for FastAPI backend
-├── docker-compose.yml                # PostgreSQL 16 + FastAPI + pgAdmin multi-container setup
+├── frontend/                         # React 19 + Next.js / Vite Frontend
+│   ├── app/
+│   │   ├── layout.tsx               # Root layout with metadata
+│   │   ├── page.tsx                 # Main entry point mounting AccessGuard workspace
+│   │   ├── workspace.tsx            # Complete dashboard, review, remediation & audit UI
+│   │   ├── globals.css              # Tailwind CSS 4 theme & responsive tokens
+│   │   └── api/
+│   │       └── workspace/
+│   │           └── route.ts         # Edge route handler / proxy
+│   ├── components/
+│   │   ├── connector-error.tsx     # Error boundary / status fallback
+│   │   └── ui/                     # 50+ shadcn/ui components (accordion, button, card,
+│   │                               # dialog, dropdown, form, table, tabs, tooltip, ...)
+│   ├── hooks/
+│   │   └── use-mobile.ts           # Mobile breakpoint hook
+│   ├── lib/
+│   │   ├── utils.ts                # cn() class utility
+│   │   ├── domain.ts               # Frontend types, severity levels, date helpers
+│   │   └── service.ts              # Client-side API fetch utilities
+│   ├── public/
+│   │   └── favicon.svg             # Application favicon
+│   ├── Dockerfile                   # Node 24 multi-stage frontend Dockerfile
+│   ├── package.json                 # Frontend dependencies (React 19, Lucide, Tailwind, ...)
+│   ├── tsconfig.json                # TypeScript configuration
+│   ├── vite.config.ts               # Vite / Vinext bundler configuration
+│   ├── postcss.config.mjs          # Tailwind CSS PostCSS configuration
+│   ├── components.json              # shadcn/ui registry config
+│   ├── eslint.config.mjs           # ESLint configuration
+│   ├── .dockerignore                # Frontend docker ignore rules
+│   └── .env.example                 # Frontend environment variable template
 │
-├── app/                              # Next.js app directory (Frontend)
-│   ├── layout.tsx                    # Root layout with metadata
-│   ├── page.tsx                      # Entry point → renders AccessGuard workspace
-│   ├── workspace.tsx                 # Dashboard and all workflow UI interfaces
-│   ├── globals.css                   # Responsive design system (Tailwind)
-│   ├── chatgpt-auth.ts              # ChatGPT authentication helpers
-│   └── api/
-│       └── workspace/
-│           └── route.ts             # Edge API route (Cloudflare Worker environment)
+├── docker-compose.yml                # Multi-container orchestration: db + backend + frontend + pgadmin
+├── Dockerfile                        # Root Dockerfile (FastAPI backend build)
 │
-├── lib/                              # Frontend / Edge core application logic
-│   ├── domain.ts                    # TypeScript pure domain: risk assessment, decisions
-│   ├── service.ts                   # TypeScript use cases
-│   ├── repository.ts               # D1 SQL repository
-│   ├── seed.ts                      # D1 seed generator
-│   ├── connectors.ts               # Connector bindings for request context
-│   ├── connector-contract.mts      # Connector contract/protocol definition
-│   ├── connector-context.ts        # Request-scoped connector binding context
-│   ├── connector-errors.mts        # Connector error types
-│   ├── connector-preview.d.ts      # Connector preview type declarations
-│   └── utils.ts                     # Utility functions (cn, className merging)
+├── sample-data/                      # Demo CSV Import Data
+│   ├── hr-identities.csv            # HR identity records for import testing
+│   └── access-assignments.csv       # Permission/entitlement assignments
 │
-├── db/                               # SQLite / Drizzle layer (Edge dev)
-│   ├── schema.ts                    # Drizzle ORM schema — all 12 tables
-│   └── index.ts                     # Database exports
-│
-├── drizzle/                          # Versioned SQL migrations (SQLite/D1)
-│   ├── 0000_handy_zuras.sql
-│   ├── 0001_productive_dreadnoughts.sql
-│   ├── 0002_light_killmonger.sql
-│   ├── 0003_marvelous_magdalene.sql
-│   └── meta/                        # Migration snapshots and journal
-│
-├── components/                       # UI components
-│   ├── connector-error.tsx          # Connector error display component
-│   └── ui/                          # 50+ shadcn/ui primitives
-│       ├── accordion.tsx, alert.tsx, button.tsx, card.tsx, chart.tsx,
-│       ├── dialog.tsx, dropdown-menu.tsx, form.tsx, input.tsx, select.tsx,
-│       ├── sidebar.tsx, table.tsx, tabs.tsx, tooltip.tsx, ...
-│
-├── hooks/                            # Custom React hooks
-│   └── use-mobile.ts               # Mobile breakpoint detection
-│
-├── tests/                            # TypeScript tests (35 automated tests)
-│   ├── domain.test.ts               # Pure domain logic tests
-│   ├── workflows.test.ts           # Full API/service workflow integration tests
-│   ├── auth.ts                      # Test auth utilities
-│   ├── database.ts                  # In-memory SQLite test adapter
-│   ├── env.ts                       # Test environment setup
-│   └── register.mjs                 # Test runner registration
-│
-├── worker/                           # Cloudflare Worker
-│   └── index.ts                     # Worker entry point
-│
-├── scripts/                          # Build, CI, and dev tooling
-│   ├── run-framework.mjs           # Framework runner (dev/build)
-│   ├── migrate-local.mjs           # Local D1 migration runner
-│   ├── execution-profile.mjs       # Execution environment detection
-│   ├── sites-env.mjs               # Sites environment configuration
-│   └── vite/                        # Custom Vite plugins
-│
-├── sample-data/                      # Importable demo data
-│   ├── hr-identities.csv           # HR identity records
-│   └── access-assignments.csv      # Permission/entitlement assignments
-│
-├── docs/                             # Documentation
-│   ├── ARCHITECTURE.md              # Architecture, decision flow, requirement traceability
+├── docs/                             # Original problem statement & walk-through
+│   ├── ARCHITECTURE.md              # Original architecture notes
 │   └── DEMO_SI.md                   # Sinhala language demonstration guide
 │
-├── .AI/                              # AI Assistant Knowledge Base & Context
-│   ├── README.md                    # System overview and quick start
-│   ├── PROJECT_STRUCTURE.md         # This annotated file tree
-│   ├── DATABASE.md                  # PostgreSQL 16 schema, tables, indexes, Alembic
-│   ├── API.md                       # FastAPI / API endpoints, schemas, actions
-│   ├── ARCHITECTURE.md              # Multi-tier architecture, state machines, Docker
-│   ├── FEATURES.md                  # 7 core features, risk rules, policies
-│   ├── TESTING.md                   # Testing strategy for Python and TypeScript
-│   └── PERSONAS.md                  # 4 demo personas and role matrix
-│
-├── package.json                      # Node project manifest (accessguard v1.0.0)
-├── vite.config.ts                    # Vite + Vinext + Cloudflare plugin config
-├── drizzle.config.ts                # Drizzle-Kit config (SQLite dialect)
-├── tsconfig.json                    # TypeScript configuration
-└── eslint.config.mjs                # ESLint configuration
+└── .AI/                              # Comprehensive AI Knowledge Base
+    ├── README.md                    # System overview and quick start guide
+    ├── FRONTEND.md                  # Frontend architecture, components, views & commands
+    ├── BACKEND.md                   # Backend architecture, FastAPI routes, ORM & services
+    ├── DATABASE.md                  # PostgreSQL 16 schema, 12 tables, indexes & Alembic
+    ├── API.md                       # API endpoints, request schemas & Swagger UI docs
+    ├── ARCHITECTURE.md              # Multi-tier architecture & state machines
+    ├── PROJECT_STRUCTURE.md         # This annotated file tree
+    ├── FEATURES.md                  # 7 core features & 6 risk policy rules
+    ├── TESTING.md                   # Testing strategy for Python and TypeScript
+    └── PERSONAS.md                  # 4 demo personas & authorization matrix
 ```
 
-## Key File Roles
+## Key Architectural Separation
 
-| Path                          | Technology          | Responsibility                                           |
-| ----------------------------- | ------------------- | -------------------------------------------------------- |
-| `backend/app/main.py`         | FastAPI             | Backend app lifecycle, CORS, router mounting, health     |
-| `backend/app/models.py`       | SQLAlchemy (async)  | 12 PostgreSQL models with UUID, JSONB, ARRAY, and indexes|
-| `backend/app/routers/workspace.py` | FastAPI        | Workspace endpoints: snapshot, CSV export, actions       |
-| `backend/app/domain.py`       | Python              | Pure risk rules (LEAVER, INACTIVE, etc.), authorization  |
-| `backend/app/service.py`      | Python              | Async business workflow orchestrator                     |
-| `backend/app/seed.py`         | Python              | Deterministic synthetic demo data generator               |
-| `Dockerfile`                  | Docker              | Multi-stage minimal production image for FastAPI         |
-| `docker-compose.yml`          | Docker Compose      | PostgreSQL 16, FastAPI backend, pgAdmin services         |
-| `app/workspace.tsx`           | React 19 / TS       | Frontend interface: dashboard, reviews, remediations     |
+| Aspect              | Frontend (`frontend/`)                  | Backend (`backend/`)                     |
+| ------------------- | --------------------------------------- | ---------------------------------------- |
+| **Language**        | TypeScript 5.9                          | Python 3.12                              |
+| **Core Framework**  | React 19 + Next.js 16 (Vinext/Vite)     | FastAPI 0.115                            |
+| **Package Manager** | `pnpm`                                  | `pip`                                    |
+| **Styling / ORM**   | Tailwind CSS 4 + shadcn/ui              | SQLAlchemy 2.0 (async) + asyncpg         |
+| **Port**            | `5173`                                  | `8000`                                   |
+| **Docker**          | `frontend/Dockerfile`                   | `backend/Dockerfile`                     |
+| **Documentation**   | [`.AI/FRONTEND.md`](./FRONTEND.md)      | [`.AI/BACKEND.md`](./BACKEND.md)         |
