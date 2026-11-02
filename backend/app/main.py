@@ -15,7 +15,13 @@ from app.routers.workspace import router as workspace_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: create tables if they don't exist."""
-    await init_db()
+    try:
+        await init_db()
+        print(" Connected to PostgreSQL database successfully.")
+    except Exception as e:
+        print(f"\n [Database Connection Error] {e}")
+        print("💡 Ensure PostgreSQL is running and credentials in backend/.env are correct.")
+        print("💡 To start PostgreSQL with Docker: docker compose up -d db\n")
     yield
 
 
