@@ -1,8 +1,7 @@
 # Dependencies
-/node_modules/
+node_modules/
 /.pnp
 .pnp.*
-# Keep authored Yarn tooling if the project adopts Yarn.
 /.yarn/*
 !/.yarn/patches/
 !/.yarn/plugins/
@@ -10,15 +9,15 @@
 !/.yarn/versions/
 
 # Generated builds and framework state
-/dist/
-/.next/
-/.vinext/
-/out/
+dist/
+.next/
+.vinext/
+out/
 next-env.d.ts
 *.tsbuildinfo
 
 # Test output
-/coverage/
+coverage/
 
 # Package-manager logs
 npm-debug.log*
@@ -28,18 +27,27 @@ yarn-error.log*
 
 # Local environment and keys
 .env*
+!.env.example
 .dev.vars*
 *.pem
 
-# Checkout-local tool state
-/.wrangler/
-/.sites-runtime/
+# Checkout-local tool state & runtimes
+.wrangler/
+.sites-runtime/
+.agents/
+.codex/
+outputs/
+work/
 
-# Workspace scaffolding and publication archives
-/.agents/
-/.codex/
-/outputs/
-/work/
+# Python backend
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+venv/
+.venv/
 
 # OS metadata
 .DS_Store
+Thumbs.db
